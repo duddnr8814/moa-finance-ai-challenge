@@ -159,9 +159,14 @@ def page_settle():
             "Amounts are Korean won integers with no separators. "
             "If the image is unreadable, return items as an empty list."
         )
-        parsed, live = ai_or_demo(prompt, images=images, as_json=True, fallback=demo.DEMO_RECEIPT)
-        if not live:
-            st.info("데모 영수증 데이터를 불러왔습니다 (AI 키 미연결 또는 호출 실패).", icon="🧪")
+        if images is None:
+            parsed, live = demo.DEMO_RECEIPT, False
+            st.info("샘플 영수증으로 시연합니다. 실제 영수증 사진을 올리면 AI가 읽습니다.", icon="🧪")
+        else:
+            parsed, live = ai_or_demo(prompt, images=images, as_json=True,
+                                      fallback=demo.DEMO_RECEIPT)
+            if not live:
+                st.info("데모 영수증 데이터를 불러왔습니다 (AI 키 미연결 또는 호출 실패).", icon="🧪")
         rows = []
         for it in (parsed or {}).get("items", []):
             row = {"항목": it.get("name", ""), "금액": int(it.get("amount", 0) or 0)}
