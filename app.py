@@ -11,8 +11,8 @@ import datetime as dt
 
 import streamlit as st
 
-from moa import demo, kb, llm, settle
-from moa.i18n import LANG_FULL, LANGS, t
+from moa import demo, kb, kb_i18n, llm, settle
+from moa.i18n import LANG_FULL, LANGS, t, topts
 
 st.set_page_config(page_title="MOA · Money On Arrival", page_icon="🪙", layout="wide")
 
@@ -81,7 +81,7 @@ html, body, .stApp, .stApp p, .stApp span, .stApp div, .stApp label,
 .moa-card b{color:var(--moa-ink);}
 
 .moa-feature{border:1px solid var(--moa-line); border-radius:20px; padding:20px;
-  background:#fff; min-height:196px; box-shadow:0 2px 12px -8px rgba(16,14,14,.2);}
+  background:#fff; min-height:240px; box-shadow:0 2px 12px -8px rgba(16,14,14,.2);}
 .moa-feature .num{font-family:'Poppins',sans-serif; font-weight:800; font-size:.8rem;
   color:#fff; background:var(--moa-grad); width:30px; height:30px; border-radius:10px;
   display:flex; align-items:center; justify-content:center; margin-bottom:12px;}
@@ -108,7 +108,7 @@ html, body, .stApp, .stApp p, .stApp span, .stApp div, .stApp label,
 
 /* ---------- 타임라인 ---------- */
 .moa-tl{border:1px solid var(--moa-line); border-radius:16px; padding:14px 12px;
-  background:#fff; min-height:124px;}
+  background:#fff; min-height:158px;}
 .moa-tl.done{background:var(--moa-grad); border:none; color:#fff;}
 .moa-tl.done .d, .moa-tl.done b{color:#fff; opacity:.95;}
 .moa-tl b{display:block; font-size:.83rem; line-height:1.35; margin-top:6px; color:var(--moa-ink);}
@@ -162,8 +162,8 @@ def init_state():
     ss.setdefault("lang", "ko")
     ss.setdefault("page", "home")
     ss.setdefault("members", [
-        {"name": "Anna (내 친구·계좌 없음)", "has_account": False, "lang": "en"},
-        {"name": "민수", "has_account": True, "lang": "ko"},
+        {"name": "Anna", "has_account": False, "lang": "en"},
+        {"name": "Minsu", "has_account": True, "lang": "ko"},
         {"name": "Linh", "has_account": False, "lang": "vi"},
     ])
     ss.setdefault("bill_items", [])
@@ -173,6 +173,14 @@ def init_state():
 
 init_state()
 L = st.session_state.lang
+
+
+def T(key: str) -> str:
+    return t(key, L)
+
+
+def won(n: int) -> str:
+    return f"{n:,}원" if L == "ko" else f"{n:,} KRW"
 
 
 def go(page: str):
@@ -203,117 +211,96 @@ with st.sidebar:
         "<div class='moa-side-logo'><div class='w'>Moa</div>"
         "<div class='s'>Money On Arrival</div></div>", unsafe_allow_html=True)
 
-    st.session_state.lang = st.selectbox(
-        t("language", L), list(LANGS.keys()),
-        format_func=lambda k: LANGS[k],
-        index=list(LANGS.keys()).index(L),
-    )
-    L = st.session_state.lang
+    st.selectbox(T("language"), list(LANGS.keys()), key="lang",
+                 format_func=lambda k: LANGS[k])
 
-    st.session_state.page = st.radio(
-        "Menu", NAV,
-        format_func=lambda k: t(NAV_KEY[k], L),
-        index=NAV.index(st.session_state.page),
-        label_visibility="collapsed",
-    )
+    st.radio("Menu", NAV, key="page",
+             format_func=lambda k: t(NAV_KEY[k], L),
+             label_visibility="collapsed")
     st.divider()
     if llm.is_live():
-        st.success(t("ai_on", L), icon="✅")
+        st.success(T("ai_on"), icon="✅")
     else:
-        st.info(t("demo_badge", L), icon="🧪")
+        st.info(T("demo_badge"), icon="🧪")
     if st.session_state.last_error:
-        with st.expander("AI 오류 로그"):
+        with st.expander(T("ai_error_log")):
             st.code(st.session_state.last_error)
-    st.caption(f"KB 기준일 {kb.KB_UPDATED}")
+    st.caption(f"{T('kb_asof')} {kb.KB_UPDATED}")
 
 page = st.session_state.page
 
 
 # ================================================================== 0. 홈
-FEATURES = [
-    ("settle", "MOA 정산",
-     "계좌가 아직 없는 친구도 빠지지 않고 나눠 낼 수 있게, 영수증을 읽어 분배하고 장부에 남깁니다."),
-    ("nav", "계좌 개설 Navi",
-     "지금 상황에서 계좌를 열려면 무엇부터 해야 하는지, 지식베이스를 근거로 모국어로 안내합니다."),
-    ("doc", "금융 서류 통역 · 사기 경보",
-     "서류나 금융 메시지를 올리면 모국어로 풀어 설명하고, 사기 신호가 있으면 경고합니다."),
-]
+FEATURES = [("settle", "feat_settle_name", "feat_settle_desc"),
+            ("nav", "feat_nav_name", "feat_nav_desc"),
+            ("doc", "feat_doc_name", "feat_doc_desc")]
 
 
 def page_home():
-    hero(f"Moa <small>Money On Arrival</small>", t("tagline", L),
-         kicker="2026 금융 AI Challenge")
+    hero("Moa <small>Money On Arrival</small>", T("tagline"), kicker=T("home_kicker"))
 
     st.markdown(
-        "<div class='moa-card'><b>Welcome to Our Society</b><br>"
-        "<span style='color:var(--moa-muted)'>계좌가 아직 없는 외국인 친구도 빠지지 않고 나눠 낼 수 있게, "
-        "영수증을 읽어 분배하고 정산 장부에 남깁니다. "
-        "MOA는 돈을 직접 옮기지 않고 <b>‘누가 누구에게 얼마’</b>만 기록합니다.</span></div>",
+        f"<div class='moa-card'><b>{T('home_welcome_title')}</b><br>"
+        f"<span style='color:var(--moa-muted)'>{T('home_welcome_body')}</span></div>",
         unsafe_allow_html=True)
 
-    step("3", "가지 주요 기능")
-    st.caption("한국에 막 도착한 외국인 유학생이 은행 계좌를 갖기 전까지 "
-               "금융 공백기를 버티게 해주는 AI 에이전트입니다.")
+    step("3", T("home_features_title"))
+    st.caption(T("home_features_sub"))
 
     cols = st.columns(3)
-    for i, ((key, name, desc), col) in enumerate(zip(FEATURES, cols), start=1):
+    for i, ((key, nk, dk), col) in enumerate(zip(FEATURES, cols), start=1):
         with col:
             st.markdown(
                 f"<div class='moa-feature'><div class='num'>{i}</div>"
-                f"<h4>{name}</h4><p>{desc}</p></div>", unsafe_allow_html=True)
-            if st.button(f"{name} →", key=f"go_{key}", use_container_width=True):
+                f"<h4>{T(nk)}</h4><p>{T(dk)}</p></div>", unsafe_allow_html=True)
+            if st.button(f"{T(nk)} \u2192", key=f"go_{key}", use_container_width=True):
                 go(key)
 
     st.markdown("")
     st.markdown(
         "<div class='moa-hero slim' style='background:var(--moa-grad-hot)'>"
-        "<h1>IT’S HERE &nbsp;<span class='moa-mark'>Moa</span></h1>"
-        "<p>AI 키가 없어도 데모 응답으로 전체 흐름을 그대로 시연할 수 있습니다.</p></div>",
-        unsafe_allow_html=True)
+        "<h1>IT\u2019S HERE &nbsp;<span class='moa-mark'>Moa</span></h1>"
+        f"<p>{T('home_cta_sub')}</p></div>", unsafe_allow_html=True)
 
 
 # ================================================================== 1. 모아 정산
 def page_settle():
     import pandas as pd
 
-    hero(t("nav_settle", L),
-         "계좌가 아직 없는 친구도 빠지지 않고 나눠 낼 수 있게, 영수증을 읽어 분배하고 정산 장부에 "
-         "남깁니다. MOA는 돈을 직접 옮기지 않고 ‘누가 누구에게 얼마’만 기록합니다.", slim=True)
+    hero(T("nav_settle"), T("settle_sub"), slim=True)
 
-    # --- Step 1. 멤버
-    step("1", "함께 낸 사람")
+    step("1", T("s_step1"))
     mdf = pd.DataFrame(st.session_state.members)
     mdf = st.data_editor(
         mdf, num_rows="dynamic", use_container_width=True, key="member_editor",
         column_config={
-            "name": st.column_config.TextColumn("이름", width="medium"),
-            "has_account": st.column_config.CheckboxColumn("한국 계좌 있음"),
-            "lang": st.column_config.SelectboxColumn("언어", options=list(LANGS.keys())),
+            "name": st.column_config.TextColumn(T("col_name"), width="medium"),
+            "has_account": st.column_config.CheckboxColumn(T("col_has_account")),
+            "lang": st.column_config.SelectboxColumn(T("col_lang"), options=list(LANGS.keys())),
         },
     )
     members = [settle.Member(str(r["name"]).strip(), bool(r["has_account"]), str(r["lang"]))
                for _, r in mdf.iterrows() if str(r.get("name", "")).strip()]
     st.session_state.members = [m.__dict__ for m in members]
     if len(members) < 2:
-        st.warning("사람을 2명 이상 입력해 주세요.")
+        st.warning(T("need_2_members"))
         return
     names = [m.name for m in members]
     no_acc = [m.name for m in members if not m.has_account]
     if no_acc:
         st.markdown(
-            f"<div class='moa-card warn'>계좌가 없는 멤버: <b>{', '.join(no_acc)}</b> — "
-            "이 사람들의 몫은 대납자에게 넘기고 <b>이연 정산(deferred)</b>으로 장부에 남깁니다.</div>",
+            f"<div class='moa-card warn'>{T('warn_no_account_pre')}: "
+            f"<b>{', '.join(no_acc)}</b> \u2014 {T('warn_no_account_body')}</div>",
             unsafe_allow_html=True)
 
-    # --- Step 2. 영수증
-    step("2", "영수증 읽기")
+    step("2", T("s_step2"))
     c1, c2 = st.columns([3, 2])
     with c1:
-        up = st.file_uploader("영수증 사진 (JPG/PNG)", type=["jpg", "jpeg", "png"])
+        up = st.file_uploader(T("receipt_upload"), type=["jpg", "jpeg", "png"])
     with c2:
         st.write("")
         st.write("")
-        run = st.button("🔍 영수증 분석", use_container_width=True, type="primary")
+        run = st.button(T("btn_analyze"), use_container_width=True, type="primary")
 
     if run:
         images = None
@@ -329,59 +316,65 @@ def page_settle():
         )
         if images is None:
             parsed, live = demo.DEMO_RECEIPT, False
-            st.info("샘플 영수증으로 시연합니다. 실제 영수증 사진을 올리면 AI가 읽습니다.", icon="🧪")
+            st.info(T("info_sample_receipt"), icon="🧪")
         else:
             parsed, live = ai_or_demo(prompt, images=images, as_json=True,
                                       fallback=demo.DEMO_RECEIPT)
             if not live:
-                st.info("데모 영수증 데이터를 불러왔습니다 (AI 키 미연결 또는 호출 실패).", icon="🧪")
+                st.info(T("info_demo_receipt"), icon="🧪")
         rows = []
         for it in (parsed or {}).get("items", []):
-            row = {"항목": it.get("name", ""), "금액": int(it.get("amount", 0) or 0)}
+            row = {"item": it.get("name", ""), "amount": int(it.get("amount", 0) or 0)}
             for n in names:
                 row[n] = True
             rows.append(row)
         st.session_state.bill_items = rows
 
-    step("3", "항목 확인 · 누가 먹었는지 체크")
-    base = st.session_state.bill_items or [{"항목": "", "금액": 0, **{n: True for n in names}}]
+    step("3", T("s_step3"))
+    base = st.session_state.bill_items or [{"item": "", "amount": 0,
+                                            **{n: True for n in names}}]
     idf = pd.DataFrame(base)
+    for c in ("item", "amount"):
+        if c not in idf.columns:
+            idf[c] = "" if c == "item" else 0
     for n in names:
         if n not in idf.columns:
             idf[n] = True
-    idf = idf[["항목", "금액"] + names]
+    idf = idf[["item", "amount"] + names]
     idf = st.data_editor(
         idf, num_rows="dynamic", use_container_width=True, key="item_editor",
-        column_config={"금액": st.column_config.NumberColumn("금액(원)", min_value=0, step=100)},
+        column_config={
+            "item": st.column_config.TextColumn(T("col_item"), width="medium"),
+            "amount": st.column_config.NumberColumn(T("col_amount"), min_value=0, step=100),
+        },
     )
     st.session_state.bill_items = idf.to_dict("records")
 
     items = []
     for _, r in idf.iterrows():
-        amt = int(r["금액"] or 0)
+        amt = int(r["amount"] or 0)
         if amt <= 0:
             continue
         parts = [n for n in names if bool(r.get(n))]
-        items.append(settle.Item(str(r["항목"]), amt, parts or names))
+        items.append(settle.Item(str(r["item"]), amt, parts or names))
     if not items:
-        st.info("금액이 있는 항목을 1개 이상 입력하면 정산이 계산됩니다.")
+        st.info(T("info_need_item"))
         return
 
     total = sum(i.amount for i in items)
     st.markdown(
-        f"<div class='moa-card'><span class='moa-sub'>합계</span><br>"
-        f"<span class='moa-amt plus'>{settle.won(total)}</span></div>",
+        f"<div class='moa-card'><span class='moa-sub'>{T('total')}</span><br>"
+        f"<span class='moa-amt plus'>{won(total)}</span></div>",
         unsafe_allow_html=True)
 
-    # --- Step 4. 대납자
-    step("4", "실제로 결제한 사람")
-    payer = st.selectbox("대납자", names,
+    step("4", T("s_step4"))
+    payer = st.selectbox(T("payer"), names,
                          index=next((i for i, m in enumerate(members) if m.has_account), 0))
-    title = st.text_input("정산 이름", "저녁 모임")
-    date = st.date_input("날짜", dt.date.today()).isoformat()
+    title = st.text_input(T("settle_name"), T("settle_name_default"))
+    date = st.date_input(T("date_label"), dt.date.today()).isoformat()
 
     bal = settle.balances(items, members, payer)
-    step("5", "정산 결과")
+    step("5", T("s_step5"))
     cols = st.columns(min(len(names), 4))
     for i, m in enumerate(members):
         amt = bal[m.name]
@@ -389,24 +382,24 @@ def page_settle():
             if m.name == payer:
                 st.markdown(
                     f"<div class='moa-card ok'><b>{m.name}</b><br>"
-                    f"<span class='moa-pill hot'>대납자</span>"
-                    f"<br><span class='moa-amt plus'>+{settle.won(-amt)}</span><br>"
-                    "<span class='moa-sub'>받을 금액</span></div>",
+                    f"<span class='moa-pill hot'>{T('payer')}</span>"
+                    f"<br><span class='moa-amt plus'>+{won(-amt)}</span><br>"
+                    f"<span class='moa-sub'>{T('tag_receive')}</span></div>",
                     unsafe_allow_html=True)
             else:
-                tag = ("<span class='moa-pill'>즉시 이체</span>" if m.has_account
-                       else "<span class='moa-pill grey'>계좌 개설 후 정산</span>")
+                tag = (f"<span class='moa-pill'>{T('tag_transfer_now')}</span>" if m.has_account
+                       else f"<span class='moa-pill grey'>{T('tag_after_account')}</span>")
                 st.markdown(
                     f"<div class='moa-card'><b>{m.name}</b><br>{tag}<br>"
-                    f"<span class='moa-amt'>{settle.won(amt)}</span><br>"
-                    "<span class='moa-sub'>보낼 금액</span></div>",
+                    f"<span class='moa-amt'>{won(amt)}</span><br>"
+                    f"<span class='moa-sub'>{T('tag_send')}</span></div>",
                     unsafe_allow_html=True)
 
-    if st.button("📒 정산 장부에 기록하고 요청 메시지 만들기", type="primary"):
+    if st.button(T("btn_ledger"), type="primary"):
         rows = settle.build_ledger(items, members, payer, title, date)
         st.session_state.ledger.extend(rows)
         by_lang = {m.name: m.lang for m in members}
-        step("6", "각 멤버에게 보낼 메시지")
+        step("6", T("s_step6"))
         for r in rows:
             lg = by_lang.get(r["from"], "en")
             prompt = (
@@ -420,72 +413,98 @@ def page_settle():
                    "They have a Korean bank account, so ask them to transfer it when convenient.\n")
                 + "3 sentences maximum. No bank account numbers. Plain text only."
             )
-            fb = (f"[{LANGS[lg]}] {r['from']}, {title} ({date}) — {settle.won(r['amount'])}. "
-                  + ("계좌가 생기면 정산할 수 있게 장부에 적어 뒀어요. 지금은 신경 쓰지 않아도 돼요."
-                     if r["status"] == "deferred" else "편할 때 보내주면 돼요!"))
+            fb = FALLBACK_MSG[lg].format(name=r["from"], title=title, date=date,
+                                         amount=f"{r['amount']:,}")
+            if r["status"] == "deferred":
+                fb += " " + FALLBACK_DEFERRED[lg]
+            else:
+                fb += " " + FALLBACK_REQUESTED[lg]
             msg, live = ai_or_demo(prompt, fallback=fb)
-            st.markdown(f"<div class='moa-card'><b>→ {r['from']}</b> "
+            st.markdown(f"<div class='moa-card'><b>\u2192 {r['from']}</b> "
                         f"<span class='moa-pill grey'>{LANGS[lg]}</span></div>",
                         unsafe_allow_html=True)
             st.code(msg, language=None)
 
-    # --- 장부
     if st.session_state.ledger:
-        step("📒", "정산 장부 (미정산)")
+        step("📒", T("ledger_title"))
         ldf = pd.DataFrame(st.session_state.ledger)
         st.dataframe(ldf, use_container_width=True, hide_index=True)
         net = settle.net_summary(st.session_state.ledger)
-        st.write(" · ".join(f"**{k}** {settle.won(v)}" for k, v in net.items()) or "-")
-        if st.button("장부 비우기"):
+        st.write(" · ".join(f"**{k}** {won(v)}" for k, v in net.items()) or "-")
+        if st.button(T("ledger_clear")):
             st.session_state.ledger = []
             st.rerun()
 
 
+FALLBACK_MSG = {
+    "ko": "{name}님, {title} ({date}) — {amount}원.",
+    "en": "Hi {name}, {title} ({date}) — {amount} KRW.",
+    "zh": "{name}，{title}（{date}）— {amount} 韩元。",
+    "vi": "Chào {name}, {title} ({date}) — {amount} KRW.",
+}
+FALLBACK_DEFERRED = {
+    "ko": "계좌가 생기면 정산할 수 있게 장부에 적어 뒀어요. 지금은 신경 쓰지 않아도 돼요.",
+    "en": "It is written in our shared ledger and we will settle once your account is open. "
+          "Nothing to do for now.",
+    "zh": "已记入共享账本，等你开好账户再结算即可，现在不用担心。",
+    "vi": "Mình đã ghi vào sổ chung, khi nào bạn mở tài khoản thì thanh toán. Giờ đừng lo nhé.",
+}
+FALLBACK_REQUESTED = {
+    "ko": "편할 때 보내주면 돼요!",
+    "en": "Send it over whenever it suits you!",
+    "zh": "方便的时候转给我就好！",
+    "vi": "Khi nào tiện bạn chuyển giúp mình nhé!",
+}
+
+
 # ============================================================ 2. 계좌 개설 내비게이터
 def page_navigator():
-    hero(t("nav_nav", L),
-         "지금 내 상황에서 계좌를 열려면 무엇부터 해야 하는지, 지식베이스를 근거로 모국어로 안내합니다.",
-         slim=True)
+    hero(T("nav_nav"), T("nav_sub"), slim=True)
 
-    step("1", "내 상황 입력")
+    step("1", T("n_step1"))
+    visa_opts, arc_opts, phone_opts = (topts("visa_opts", L), topts("arc_opts", L),
+                                       topts("phone_opts", L))
     c1, c2, c3 = st.columns(3)
     with c1:
-        visa = st.selectbox("체류자격", ["D-2 유학", "D-4 어학연수", "D-10 구직", "기타"])
-        arrived = st.date_input("입국일", dt.date.today() - dt.timedelta(days=10))
+        visa_i = visa_opts.index(st.selectbox(T("visa_label"), visa_opts))
+        arrived = st.date_input(T("arrived_label"), dt.date.today() - dt.timedelta(days=10))
     with c2:
-        arc = st.selectbox("외국인등록증(ARC)",
-                           ["아직 신청 안 함", "신청함 · 수령 대기", "수령 완료"])
-        phone = st.selectbox("본인 명의 휴대폰", ["없음", "선불 유심 개통", "후불 요금제 개통"])
+        arc_i = arc_opts.index(st.selectbox(T("arc_label"), arc_opts))
+        phone_i = phone_opts.index(st.selectbox(T("phone_label"), phone_opts))
     with c3:
-        univ = st.text_input("학교 (선택)", "")
-        region = st.text_input("지역 (선택)", "")
+        univ = st.text_input(T("univ_label"), "")
+        region = st.text_input(T("region_label"), "")
 
-    dorm = st.checkbox("기숙사 입사확인서 또는 임대차계약서가 있다")
-    enroll = st.checkbox("재학(입학) 증명서가 있다")
+    dorm = st.checkbox(T("chk_residence"))
+    enroll = st.checkbox(T("chk_enroll"))
 
-    # 진행 단계 시각화
+    VISA_EN = ["D-2 degree student", "D-4 language student", "D-10 job seeker", "other"]
+    ARC_EN = ["not applied yet", "applied, waiting for issue", "received"]
+    PHONE_EN = ["none", "prepaid SIM", "postpaid plan"]
+
     done = {"arrival": True,
-            "sim": phone != "없음",
-            "arc_apply": arc != "아직 신청 안 함",
+            "sim": phone_i != 0,
+            "arc_apply": arc_i != 0,
             "limit_account": False,
-            "arc_issue": arc == "수령 완료",
+            "arc_issue": arc_i == 2,
             "full_account": False}
-    step("2", "정착 타임라인")
+    step("2", T("n_step2"))
     tl = st.columns(len(kb.JOURNEY_STEPS))
     for col, stp in zip(tl, kb.JOURNEY_STEPS):
         is_done = done.get(stp["key"])
         mark = "✅" if is_done else "⬜"
         col.markdown(
             f"<div class='moa-tl{' done' if is_done else ''}'>{mark}"
-            f"<b>{stp['ko']}</b><div class='d'>{stp['days']}</div></div>",
+            f"<b>{t('journey_' + stp['key'], L)}</b><div class='d'>{stp['days']}</div></div>",
             unsafe_allow_html=True)
 
     st.markdown("")
-    if st.button("🧭 내 상황에 맞는 다음 단계 받기", type="primary"):
+    if st.button(T("btn_next_steps"), type="primary"):
         days = (dt.date.today() - arrived).days
-        profile = (f"visa={visa}, days_since_arrival={days}, ARC={arc}, phone={phone}, "
-                   f"university={univ or 'unknown'}, region={region or 'unknown'}, "
-                   f"has_residence_proof={dorm}, has_enrollment_certificate={enroll}")
+        profile = (f"visa={VISA_EN[visa_i]}, days_since_arrival={days}, ARC={ARC_EN[arc_i]}, "
+                   f"phone={PHONE_EN[phone_i]}, university={univ or 'unknown'}, "
+                   f"region={region or 'unknown'}, has_residence_proof={dorm}, "
+                   f"has_enrollment_certificate={enroll}")
         prompt = (
             "KNOWLEDGE BASE:\n" + kb.kb_context() + "\n\n"
             f"STUDENT PROFILE: {profile}\n\n"
@@ -502,29 +521,27 @@ def page_navigator():
         )
         out, live = ai_or_demo(prompt, fallback=demo.DEMO_NAVIGATOR["ko"])
         if not live:
-            st.info("데모 응답입니다 (AI 키 미연결 또는 호출 실패).", icon="🧪")
+            st.info(T("info_demo_response"), icon="🧪")
         st.markdown(out)
 
-    with st.expander("📚 이 안내의 근거 (지식베이스 원문)"):
+    with st.expander(T("kb_expander")):
         for r in kb.ACCOUNT_RULES:
-            st.markdown(f"**{r['topic']}** — {r['fact']}  \n"
-                        f"<span class='moa-sub'>출처: {r['source']} · "
-                        f"확신도: {r['confidence']}</span>", unsafe_allow_html=True)
+            st.markdown(
+                f"**{kb_i18n.rule(r, 'topic', L)}** — {kb_i18n.rule(r, 'fact', L)}  \n"
+                f"<span class='moa-sub'>{T('kb_source')}: {kb_i18n.rule(r, 'source', L)} · "
+                f"{T('kb_confidence')}: {kb_i18n.confidence(r['confidence'], L)}</span>",
+                unsafe_allow_html=True)
 
 
 # ======================================================= 3. 금융서류 통역 · 사기 경보
 def page_decoder():
-    hero(t("nav_doc", L),
-         "은행 서류나 낯선 금융 메시지를 올리면 모국어로 풀어 설명하고, 사기 신호가 있으면 경고합니다.",
-         slim=True)
+    hero(T("nav_doc"), T("doc_sub"), slim=True)
 
-    step("1", "서류 또는 메시지 올리기")
-    up = st.file_uploader("서류·화면 캡처 (JPG/PNG)", type=["jpg", "jpeg", "png"], key="doc_up")
-    txt = st.text_area("또는 받은 메시지를 붙여넣기",
-                       placeholder="예) 계좌를 빌려주면 하루 30만원을 드립니다. 통장과 카드만 보내주세요.",
-                       height=110)
+    step("1", T("d_step1"))
+    up = st.file_uploader(T("doc_upload"), type=["jpg", "jpeg", "png"], key="doc_up")
+    txt = st.text_area(T("doc_paste"), placeholder=T("doc_placeholder"), height=110)
 
-    if st.button("🔎 해석하기", type="primary"):
+    if st.button(T("btn_decode"), type="primary"):
         images = [(up.getvalue(), up.type or "image/jpeg")] if up else None
         prompt = (
             "KNOWLEDGE BASE:\n" + kb.kb_context() + "\n\n"
@@ -540,58 +557,41 @@ def page_decoder():
         )
         res, live = ai_or_demo(prompt, images=images, as_json=True, fallback=demo.DEMO_DECODER)
         if not live:
-            st.info("데모 응답입니다 (AI 키 미연결 또는 호출 실패).", icon="🧪")
+            st.info(T("info_demo_response"), icon="🧪")
         res = res or {}
         lvl = res.get("risk_level", "safe")
         css = {"danger": "danger", "caution": "warn"}.get(lvl, "ok")
-        label = {"danger": "🚨 위험 — 사기 가능성 높음", "caution": "⚠️ 주의", "safe": "✅ 특이 위험 없음"}[lvl]
-        step("2", "해석 결과")
+        label = T({"danger": "risk_danger", "caution": "risk_caution"}.get(lvl, "risk_safe"))
+        step("2", T("d_step2"))
         st.markdown(f"<div class='moa-card {css}'><b>{label}</b><br>{res.get('risk_note','')}</div>",
                     unsafe_allow_html=True)
-        st.markdown(f"**요약**  \n{res.get('summary','')}")
+        st.markdown(f"**{T('summary_label')}**  \n{res.get('summary','')}")
         for p in res.get("key_points", []):
             st.markdown(f"- {p}")
         matched = res.get("matched_scam") or ""
         for s in kb.SCAM_PATTERNS:
             if matched and matched in s["name_ko"]:
                 st.markdown(
-                    f"<div class='moa-card danger'><b>{s['name_ko']}</b><br>"
-                    f"<b>왜 위험한가</b> {s['why_dangerous']}<br>"
-                    f"<b>지금 할 일</b> {s['action']}</div>", unsafe_allow_html=True)
+                    f"<div class='moa-card danger'>"
+                    f"<b>{kb_i18n.scam(s, 'name', L)}</b><br>"
+                    f"<b>{T('scam_why')}</b> {kb_i18n.scam(s, 'why', L)}<br>"
+                    f"<b>{T('scam_now')}</b> {kb_i18n.scam(s, 'action', L)}</div>",
+                    unsafe_allow_html=True)
 
-    with st.expander("🚨 유학생 대상 금융사기 유형 (지식베이스)"):
+    with st.expander(T("scam_expander")):
         for s in kb.SCAM_PATTERNS:
-            st.markdown(f"**{s['name_ko']}** ({s['severity']})  \n신호: {s['signal']}  \n"
-                        f"대응: {s['action']}")
+            st.markdown(
+                f"**{kb_i18n.scam(s, 'name', L)}** "
+                f"({kb_i18n.severity(s['severity'], L)})  \n"
+                f"{T('scam_signal')}: {kb_i18n.scam(s, 'signal', L)}  \n"
+                f"{T('scam_action')}: {kb_i18n.scam(s, 'action', L)}")
 
 
 # ================================================================== 소개
 def page_about():
-    hero("The MOA", "한국에 막 도착한 외국인 유학생이 은행 계좌를 갖기 전까지의 "
-         "금융 공백기를 버티게 해주는 AI 에이전트입니다.", slim=True)
-    st.markdown("""
-**문제**
-- 국내 외국인 유학생은 25만 3,512명입니다 (2025-04-01 기준, 교육부·한국교육개발원).
-- 입국 후 외국인등록증 발급과 계좌 개설까지 보통 몇 주가 걸립니다.
-- 그동안 유학생은 더치페이·동아리 회비·기숙사 공동구매에서 사실상 배제되고,
-  같이 어울리는 한국인 학생은 현금을 받아 두거나 ATM 무통장입금을 기다려야 합니다.
-
-**MOA가 하는 일**
-1. **모아 정산** — 영수증을 AI가 읽어 항목별로 나누고, 계좌가 없는 멤버 몫은 대납자에게 넘긴 뒤
-   장부에 이연 기록합니다. 각자의 모국어로 정산 메시지를 만들어 줍니다.
-2. **계좌 개설 내비게이터** — 체류자격·입국일·ARC 상태를 넣으면 지금 할 일 3가지와
-   가져갈 서류를 모국어로 안내합니다.
-3. **금융서류 통역 · 사기 경보** — 은행 서류나 수상한 메시지를 해석하고,
-   통장 대여 요구 같은 사기 신호를 잡아냅니다.
-
-**설계 원칙**
-- MOA는 **자금을 이동시키지 않습니다.** 정산 기록과 요청 메시지만 만듭니다.
-  (전자금융업 인가 없이 운영 가능한 범위로 의도적으로 한정했습니다.)
-- 여권번호·외국인등록번호·계좌번호는 **수집하지 않습니다.**
-- 생성형 AI는 내장 지식베이스를 근거로만 답하며, 근거가 없으면 "은행에 확인하라"고 말합니다.
-- AI 호출이 실패해도 앱은 데모 응답으로 계속 동작합니다.
-""")
-    st.caption("2026 금융 AI Challenge 출품작 · MVP · 실제 금융거래를 제공하지 않는 시연용 서비스입니다.")
+    hero(T("about_title"), T("about_sub"), slim=True)
+    st.markdown(T("about_body"))
+    st.caption(T("about_caption"))
 
 
 PAGES = {"home": page_home, "settle": page_settle, "nav": page_navigator,
