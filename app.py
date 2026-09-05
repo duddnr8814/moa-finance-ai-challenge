@@ -2,12 +2,12 @@
 """MOA · Money On Arrival
 2026 금융 AI Challenge — 외국인 유학생 금융 정착 AI Agent (MVP)
 
+UI: Canva 'Moa' 브랜드 시스템 (오렌지 그라데이션) 적용
 실행: streamlit run app.py
 """
 from __future__ import annotations
 
 import datetime as dt
-import json
 
 import streamlit as st
 
@@ -16,31 +16,151 @@ from moa.i18n import LANG_FULL, LANGS, t
 
 st.set_page_config(page_title="MOA · Money On Arrival", page_icon="🪙", layout="wide")
 
+# ------------------------------------------------------------------ 브랜드 시스템
 CSS = """
 <style>
-.block-container {padding-top: 2rem; max-width: 1100px;}
-.moa-hero {background: linear-gradient(135deg,#2F6BFF 0%,#6B5BFF 100%);
-  color:#fff; padding:22px 26px; border-radius:16px; margin-bottom:18px;}
-.moa-hero h1 {margin:0; font-size:1.55rem; color:#fff;}
-.moa-hero p {margin:6px 0 0; opacity:.92; font-size:.95rem;}
-.moa-card {border:1px solid #E5E7EB; border-radius:12px; padding:14px 16px; margin-bottom:10px;
-  background:#fff;}
-.moa-card.warn {border-left:5px solid #F59E0B; background:#FFFBEB;}
-.moa-card.danger {border-left:5px solid #DC2626; background:#FEF2F2;}
-.moa-card.ok {border-left:5px solid #10B981; background:#ECFDF5;}
-.moa-pill {display:inline-block; padding:2px 10px; border-radius:999px; font-size:.75rem;
-  background:#EEF2FF; color:#3730A3; margin-right:6px;}
-.moa-pill.grey {background:#F3F4F6; color:#4B5563;}
-.moa-amt {font-size:1.25rem; font-weight:700; color:#111827;}
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;800&display=swap');
+
+:root{
+  --moa-orange:#FE670F;
+  --moa-amber:#FD9520;
+  --moa-yellow:#F7C536;
+  --moa-coral:#FB4658;
+  --moa-magenta:#FF3C8D;
+  --moa-ink:#100E0E;
+  --moa-muted:#6B6B70;
+  --moa-line:#ECECEF;
+  --moa-bg:#F8F8F9;
+  --moa-grad:linear-gradient(115deg,#FE670F 0%,#FD9520 58%,#F7C536 100%);
+  --moa-grad-hot:linear-gradient(115deg,#FF3C8D 0%,#FB4658 40%,#FE670F 100%);
+}
+
+.stApp{background:var(--moa-bg);}
+html, body, .stApp, .stApp p, .stApp span, .stApp div, .stApp label,
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp li, .stApp td, .stApp th{
+  font-family:'Pretendard','Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+.block-container{padding-top:1.6rem; padding-bottom:3rem; max-width:1140px;}
+.stApp h3, .stApp h4{color:var(--moa-ink); letter-spacing:-.02em;}
+
+/* ---------- 워드마크 ---------- */
+.moa-mark{font-family:'Poppins',sans-serif; font-weight:800; letter-spacing:-.03em;}
+
+/* ---------- 히어로 ---------- */
+.moa-hero{
+  position:relative; overflow:hidden;
+  background:var(--moa-grad); color:#fff;
+  padding:30px 34px; border-radius:26px; margin-bottom:20px;
+  box-shadow:0 18px 40px -22px rgba(254,103,15,.75);
+}
+.moa-hero::after{
+  content:""; position:absolute; right:-70px; top:-90px; width:300px; height:300px;
+  border-radius:50%; background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.45),rgba(255,255,255,0) 62%);
+}
+.moa-hero h1{margin:0; font-size:2.1rem; color:#fff; font-family:'Poppins',sans-serif;
+  font-weight:800; letter-spacing:-.035em; line-height:1.12;}
+.moa-hero h1 small{display:block; font-size:1.02rem; font-weight:600; opacity:.95;
+  letter-spacing:0; margin-top:4px;}
+.moa-hero div[data-testid]{margin:0 !important; padding:0 !important;}
+.moa-hero div[data-testid] a{display:none;}
+.moa-hero p{margin:10px 0 0; font-size:1rem; opacity:.96; max-width:640px; line-height:1.55;}
+.moa-hero .moa-kicker{display:inline-block; background:rgba(255,255,255,.22); color:#fff;
+  padding:4px 13px; border-radius:999px; font-size:.76rem; font-weight:700;
+  margin-bottom:12px; backdrop-filter:blur(2px);}
+.moa-hero.slim{padding:20px 26px; border-radius:20px; margin-bottom:16px;}
+.moa-hero.slim h1{font-size:1.4rem;}
+.moa-hero.slim p{margin-top:6px; font-size:.92rem;}
+
+/* ---------- 카드 ---------- */
+.moa-card{border:1px solid var(--moa-line); border-radius:18px; padding:18px 20px;
+  margin-bottom:12px; background:#fff; box-shadow:0 2px 10px -6px rgba(16,14,14,.16);}
+.moa-card.warn{border:none; border-left:5px solid var(--moa-amber); background:#FFF7EC;}
+.moa-card.danger{border:none; border-left:5px solid var(--moa-coral); background:#FFF1F3;}
+.moa-card.ok{border:none; border-left:5px solid var(--moa-orange); background:#FFF3EA;}
+.moa-card b{color:var(--moa-ink);}
+
+.moa-feature{border:1px solid var(--moa-line); border-radius:20px; padding:20px;
+  background:#fff; min-height:196px; box-shadow:0 2px 12px -8px rgba(16,14,14,.2);}
+.moa-feature .num{font-family:'Poppins',sans-serif; font-weight:800; font-size:.8rem;
+  color:#fff; background:var(--moa-grad); width:30px; height:30px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; margin-bottom:12px;}
+.moa-feature h4{margin:0 0 8px; font-size:1.05rem; letter-spacing:-.02em;}
+.moa-feature p{margin:0; font-size:.88rem; color:var(--moa-muted); line-height:1.6;}
+
+/* ---------- 배지 / 금액 ---------- */
+.moa-pill{display:inline-block; padding:3px 11px; border-radius:999px; font-size:.74rem;
+  font-weight:700; background:#FFF0E4; color:#C24A00; margin-right:6px;}
+.moa-pill.grey{background:#F1F1F3; color:#5B5B61;}
+.moa-pill.hot{background:var(--moa-grad-hot); color:#fff;}
+.moa-amt{font-family:'Poppins',sans-serif; font-size:1.35rem; font-weight:800;
+  color:var(--moa-ink); letter-spacing:-.02em;}
+.moa-amt.plus{background:var(--moa-grad); -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent; background-clip:text;}
+.moa-sub{font-size:.78rem; color:var(--moa-muted);}
+
+/* ---------- 스텝 헤딩 ---------- */
+.moa-step{display:flex; align-items:center; gap:10px; margin:24px 0 10px;}
+.moa-step .n{font-family:'Poppins',sans-serif; font-weight:800; font-size:.82rem; color:#fff;
+  background:var(--moa-ink); min-width:26px; height:26px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;}
+.moa-step .tx{font-weight:700; font-size:1.02rem; color:var(--moa-ink); letter-spacing:-.02em;}
+
+/* ---------- 타임라인 ---------- */
+.moa-tl{border:1px solid var(--moa-line); border-radius:16px; padding:14px 12px;
+  background:#fff; min-height:124px;}
+.moa-tl.done{background:var(--moa-grad); border:none; color:#fff;}
+.moa-tl.done .d, .moa-tl.done b{color:#fff; opacity:.95;}
+.moa-tl b{display:block; font-size:.83rem; line-height:1.35; margin-top:6px; color:var(--moa-ink);}
+.moa-tl .d{font-size:.72rem; color:var(--moa-muted); margin-top:6px;}
+
+/* ---------- 버튼 ---------- */
+div.stButton > button{border-radius:999px; font-weight:700; border:1px solid var(--moa-line);
+  padding:.5rem 1.1rem; transition:all .15s ease;}
+div.stButton > button:hover{border-color:var(--moa-orange); color:var(--moa-orange);}
+div.stButton > button[kind="primary"]{background:var(--moa-grad); border:none; color:#fff;
+  box-shadow:0 10px 22px -14px rgba(254,103,15,.95);}
+div.stButton > button[kind="primary"]:hover{filter:brightness(1.06); color:#fff;}
+
+/* ---------- 사이드바 ---------- */
+section[data-testid="stSidebar"]{background:#fff; border-right:1px solid var(--moa-line);}
+.moa-side-logo{background:var(--moa-grad); color:#fff; border-radius:18px; padding:16px 18px;
+  margin-bottom:14px;}
+.moa-side-logo .w{font-family:'Poppins',sans-serif; font-weight:800; font-size:1.5rem;
+  letter-spacing:-.03em; line-height:1;}
+.moa-side-logo .s{font-size:.74rem; opacity:.95; margin-top:4px; font-weight:600;}
+
+/* ---------- 폼 요소 ---------- */
+.stTextInput input, .stTextArea textarea, .stDateInput input{border-radius:12px !important;}
+div[data-baseweb="select"] > div{border-radius:12px !important;}
+.stFileUploader section{border-radius:16px; border:1.5px dashed #E2C6B2; background:#FFFAF6;}
+div[data-testid="stExpander"]{border-radius:16px; border:1px solid var(--moa-line);
+  background:#fff; overflow:hidden;}
+hr{border-color:var(--moa-line);}
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
+
+
+def hero(title: str, subtitle: str, kicker: str = "", slim: bool = False):
+    k = f"<span class='moa-kicker'>{kicker}</span>" if kicker else ""
+    st.markdown(
+        f"<div class='moa-hero{' slim' if slim else ''}'>{k}<h1>{title}</h1>"
+        f"<p>{subtitle}</p></div>",
+        unsafe_allow_html=True,
+    )
+
+
+def step(n: str, text: str):
+    st.markdown(f"<div class='moa-step'><span class='n'>{n}</span>"
+                f"<span class='tx'>{text}</span></div>", unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------ 상태
 def init_state():
     ss = st.session_state
     ss.setdefault("lang", "ko")
+    ss.setdefault("page", "home")
     ss.setdefault("members", [
         {"name": "Anna (내 친구·계좌 없음)", "has_account": False, "lang": "en"},
         {"name": "민수", "has_account": True, "lang": "ko"},
@@ -53,6 +173,11 @@ def init_state():
 
 init_state()
 L = st.session_state.lang
+
+
+def go(page: str):
+    st.session_state.page = page
+    st.rerun()
 
 
 def note_error(err):
@@ -69,8 +194,15 @@ def ai_or_demo(prompt, images=None, as_json=False, fallback=None):
 
 
 # ------------------------------------------------------------------ 사이드바
+NAV = ["home", "settle", "nav", "doc", "about"]
+NAV_KEY = {"home": "nav_home", "settle": "nav_settle", "nav": "nav_nav",
+           "doc": "nav_doc", "about": "nav_about"}
+
 with st.sidebar:
-    st.markdown("### 🪙 MOA")
+    st.markdown(
+        "<div class='moa-side-logo'><div class='w'>Moa</div>"
+        "<div class='s'>Money On Arrival</div></div>", unsafe_allow_html=True)
+
     st.session_state.lang = st.selectbox(
         t("language", L), list(LANGS.keys()),
         format_func=lambda k: LANGS[k],
@@ -78,11 +210,10 @@ with st.sidebar:
     )
     L = st.session_state.lang
 
-    page = st.radio(
-        "Menu",
-        ["settle", "nav", "doc", "about"],
-        format_func=lambda k: t({"settle": "nav_settle", "nav": "nav_nav",
-                                 "doc": "nav_doc", "about": "nav_about"}[k], L),
+    st.session_state.page = st.radio(
+        "Menu", NAV,
+        format_func=lambda k: t(NAV_KEY[k], L),
+        index=NAV.index(st.session_state.page),
         label_visibility="collapsed",
     )
     st.divider()
@@ -95,25 +226,62 @@ with st.sidebar:
             st.code(st.session_state.last_error)
     st.caption(f"KB 기준일 {kb.KB_UPDATED}")
 
+page = st.session_state.page
 
-st.markdown(
-    f"<div class='moa-hero'><h1>{t('app_title', L)}</h1><p>{t('tagline', L)}</p></div>",
-    unsafe_allow_html=True,
-)
+
+# ================================================================== 0. 홈
+FEATURES = [
+    ("settle", "MOA 정산",
+     "계좌가 아직 없는 친구도 빠지지 않고 나눠 낼 수 있게, 영수증을 읽어 분배하고 장부에 남깁니다."),
+    ("nav", "계좌 개설 Navi",
+     "지금 상황에서 계좌를 열려면 무엇부터 해야 하는지, 지식베이스를 근거로 모국어로 안내합니다."),
+    ("doc", "금융 서류 통역 · 사기 경보",
+     "서류나 금융 메시지를 올리면 모국어로 풀어 설명하고, 사기 신호가 있으면 경고합니다."),
+]
+
+
+def page_home():
+    hero(f"Moa <small>Money On Arrival</small>", t("tagline", L),
+         kicker="2026 금융 AI Challenge")
+
+    st.markdown(
+        "<div class='moa-card'><b>Welcome to Our Society</b><br>"
+        "<span style='color:var(--moa-muted)'>계좌가 아직 없는 외국인 친구도 빠지지 않고 나눠 낼 수 있게, "
+        "영수증을 읽어 분배하고 정산 장부에 남깁니다. "
+        "MOA는 돈을 직접 옮기지 않고 <b>‘누가 누구에게 얼마’</b>만 기록합니다.</span></div>",
+        unsafe_allow_html=True)
+
+    step("3", "가지 주요 기능")
+    st.caption("한국에 막 도착한 외국인 유학생이 은행 계좌를 갖기 전까지 "
+               "금융 공백기를 버티게 해주는 AI 에이전트입니다.")
+
+    cols = st.columns(3)
+    for i, ((key, name, desc), col) in enumerate(zip(FEATURES, cols), start=1):
+        with col:
+            st.markdown(
+                f"<div class='moa-feature'><div class='num'>{i}</div>"
+                f"<h4>{name}</h4><p>{desc}</p></div>", unsafe_allow_html=True)
+            if st.button(f"{name} →", key=f"go_{key}", use_container_width=True):
+                go(key)
+
+    st.markdown("")
+    st.markdown(
+        "<div class='moa-hero slim' style='background:var(--moa-grad-hot)'>"
+        "<h1>IT’S HERE &nbsp;<span class='moa-mark'>Moa</span></h1>"
+        "<p>AI 키가 없어도 데모 응답으로 전체 흐름을 그대로 시연할 수 있습니다.</p></div>",
+        unsafe_allow_html=True)
 
 
 # ================================================================== 1. 모아 정산
 def page_settle():
     import pandas as pd
 
-    st.subheader(t("nav_settle", L))
-    st.caption(
-        "계좌가 아직 없는 친구도 빠지지 않고 나눠 낼 수 있게, 영수증을 읽어 분배하고 "
-        "정산 장부에 남깁니다. MOA는 돈을 직접 옮기지 않고 '누가 누구에게 얼마'만 기록합니다."
-    )
+    hero(t("nav_settle", L),
+         "계좌가 아직 없는 친구도 빠지지 않고 나눠 낼 수 있게, 영수증을 읽어 분배하고 정산 장부에 "
+         "남깁니다. MOA는 돈을 직접 옮기지 않고 ‘누가 누구에게 얼마’만 기록합니다.", slim=True)
 
     # --- Step 1. 멤버
-    st.markdown("#### 1️⃣ 함께 낸 사람")
+    step("1", "함께 낸 사람")
     mdf = pd.DataFrame(st.session_state.members)
     mdf = st.data_editor(
         mdf, num_rows="dynamic", use_container_width=True, key="member_editor",
@@ -138,7 +306,7 @@ def page_settle():
             unsafe_allow_html=True)
 
     # --- Step 2. 영수증
-    st.markdown("#### 2️⃣ 영수증 읽기")
+    step("2", "영수증 읽기")
     c1, c2 = st.columns([3, 2])
     with c1:
         up = st.file_uploader("영수증 사진 (JPG/PNG)", type=["jpg", "jpeg", "png"])
@@ -175,7 +343,7 @@ def page_settle():
             rows.append(row)
         st.session_state.bill_items = rows
 
-    st.markdown("#### 3️⃣ 항목 확인 · 누가 먹었는지 체크")
+    step("3", "항목 확인 · 누가 먹었는지 체크")
     base = st.session_state.bill_items or [{"항목": "", "금액": 0, **{n: True for n in names}}]
     idf = pd.DataFrame(base)
     for n in names:
@@ -200,40 +368,45 @@ def page_settle():
         return
 
     total = sum(i.amount for i in items)
-    st.markdown(f"합계 <span class='moa-amt'>{settle.won(total)}</span>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='moa-card'><span class='moa-sub'>합계</span><br>"
+        f"<span class='moa-amt plus'>{settle.won(total)}</span></div>",
+        unsafe_allow_html=True)
 
     # --- Step 4. 대납자
-    st.markdown("#### 4️⃣ 실제로 결제한 사람")
+    step("4", "실제로 결제한 사람")
     payer = st.selectbox("대납자", names,
                          index=next((i for i, m in enumerate(members) if m.has_account), 0))
     title = st.text_input("정산 이름", "저녁 모임")
     date = st.date_input("날짜", dt.date.today()).isoformat()
 
     bal = settle.balances(items, members, payer)
-    st.markdown("#### 5️⃣ 정산 결과")
+    step("5", "정산 결과")
     cols = st.columns(min(len(names), 4))
     for i, m in enumerate(members):
         amt = bal[m.name]
         with cols[i % len(cols)]:
             if m.name == payer:
                 st.markdown(
-                    f"<div class='moa-card ok'><b>{m.name}</b><br><span class='moa-pill'>대납자</span>"
-                    f"<br><span class='moa-amt'>+{settle.won(-amt)}</span><br>"
-                    "<span style='font-size:.8rem;color:#6B7280'>받을 금액</span></div>",
+                    f"<div class='moa-card ok'><b>{m.name}</b><br>"
+                    f"<span class='moa-pill hot'>대납자</span>"
+                    f"<br><span class='moa-amt plus'>+{settle.won(-amt)}</span><br>"
+                    "<span class='moa-sub'>받을 금액</span></div>",
                     unsafe_allow_html=True)
             else:
                 tag = ("<span class='moa-pill'>즉시 이체</span>" if m.has_account
                        else "<span class='moa-pill grey'>계좌 개설 후 정산</span>")
                 st.markdown(
                     f"<div class='moa-card'><b>{m.name}</b><br>{tag}<br>"
-                    f"<span class='moa-amt'>{settle.won(amt)}</span></div>",
+                    f"<span class='moa-amt'>{settle.won(amt)}</span><br>"
+                    "<span class='moa-sub'>보낼 금액</span></div>",
                     unsafe_allow_html=True)
 
     if st.button("📒 정산 장부에 기록하고 요청 메시지 만들기", type="primary"):
         rows = settle.build_ledger(items, members, payer, title, date)
         st.session_state.ledger.extend(rows)
         by_lang = {m.name: m.lang for m in members}
-        st.markdown("##### 각 멤버에게 보낼 메시지")
+        step("6", "각 멤버에게 보낼 메시지")
         for r in rows:
             lg = by_lang.get(r["from"], "en")
             prompt = (
@@ -258,7 +431,7 @@ def page_settle():
 
     # --- 장부
     if st.session_state.ledger:
-        st.markdown("#### 📒 정산 장부 (미정산)")
+        step("📒", "정산 장부 (미정산)")
         ldf = pd.DataFrame(st.session_state.ledger)
         st.dataframe(ldf, use_container_width=True, hide_index=True)
         net = settle.net_summary(st.session_state.ledger)
@@ -270,9 +443,11 @@ def page_settle():
 
 # ============================================================ 2. 계좌 개설 내비게이터
 def page_navigator():
-    st.subheader(t("nav_nav", L))
-    st.caption("지금 내 상황에서 계좌를 열려면 무엇부터 해야 하는지, 지식베이스를 근거로 모국어로 안내합니다.")
+    hero(t("nav_nav", L),
+         "지금 내 상황에서 계좌를 열려면 무엇부터 해야 하는지, 지식베이스를 근거로 모국어로 안내합니다.",
+         slim=True)
 
+    step("1", "내 상황 입력")
     c1, c2, c3 = st.columns(3)
     with c1:
         visa = st.selectbox("체류자격", ["D-2 유학", "D-4 어학연수", "D-10 구직", "기타"])
@@ -295,15 +470,17 @@ def page_navigator():
             "limit_account": False,
             "arc_issue": arc == "수령 완료",
             "full_account": False}
-    st.markdown("##### 정착 타임라인")
+    step("2", "정착 타임라인")
     tl = st.columns(len(kb.JOURNEY_STEPS))
-    for col, step in zip(tl, kb.JOURNEY_STEPS):
-        mark = "✅" if done.get(step["key"]) else "⬜"
-        col.markdown(f"<div class='moa-card' style='min-height:96px'>{mark} "
-                     f"<b style='font-size:.85rem'>{step['ko']}</b><br>"
-                     f"<span style='font-size:.75rem;color:#6B7280'>{step['days']}</span></div>",
-                     unsafe_allow_html=True)
+    for col, stp in zip(tl, kb.JOURNEY_STEPS):
+        is_done = done.get(stp["key"])
+        mark = "✅" if is_done else "⬜"
+        col.markdown(
+            f"<div class='moa-tl{' done' if is_done else ''}'>{mark}"
+            f"<b>{stp['ko']}</b><div class='d'>{stp['days']}</div></div>",
+            unsafe_allow_html=True)
 
+    st.markdown("")
     if st.button("🧭 내 상황에 맞는 다음 단계 받기", type="primary"):
         days = (dt.date.today() - arrived).days
         profile = (f"visa={visa}, days_since_arrival={days}, ARC={arc}, phone={phone}, "
@@ -326,20 +503,22 @@ def page_navigator():
         out, live = ai_or_demo(prompt, fallback=demo.DEMO_NAVIGATOR["ko"])
         if not live:
             st.info("데모 응답입니다 (AI 키 미연결 또는 호출 실패).", icon="🧪")
-        st.markdown(f"<div class='moa-card'>{out}</div>" if False else out)
+        st.markdown(out)
 
     with st.expander("📚 이 안내의 근거 (지식베이스 원문)"):
         for r in kb.ACCOUNT_RULES:
             st.markdown(f"**{r['topic']}** — {r['fact']}  \n"
-                        f"<span style='font-size:.78rem;color:#6B7280'>출처: {r['source']} · "
+                        f"<span class='moa-sub'>출처: {r['source']} · "
                         f"확신도: {r['confidence']}</span>", unsafe_allow_html=True)
 
 
 # ======================================================= 3. 금융서류 통역 · 사기 경보
 def page_decoder():
-    st.subheader(t("nav_doc", L))
-    st.caption("은행 서류나 낯선 금융 메시지를 올리면 모국어로 풀어 설명하고, 사기 신호가 있으면 경고합니다.")
+    hero(t("nav_doc", L),
+         "은행 서류나 낯선 금융 메시지를 올리면 모국어로 풀어 설명하고, 사기 신호가 있으면 경고합니다.",
+         slim=True)
 
+    step("1", "서류 또는 메시지 올리기")
     up = st.file_uploader("서류·화면 캡처 (JPG/PNG)", type=["jpg", "jpeg", "png"], key="doc_up")
     txt = st.text_area("또는 받은 메시지를 붙여넣기",
                        placeholder="예) 계좌를 빌려주면 하루 30만원을 드립니다. 통장과 카드만 보내주세요.",
@@ -366,6 +545,7 @@ def page_decoder():
         lvl = res.get("risk_level", "safe")
         css = {"danger": "danger", "caution": "warn"}.get(lvl, "ok")
         label = {"danger": "🚨 위험 — 사기 가능성 높음", "caution": "⚠️ 주의", "safe": "✅ 특이 위험 없음"}[lvl]
+        step("2", "해석 결과")
         st.markdown(f"<div class='moa-card {css}'><b>{label}</b><br>{res.get('risk_note','')}</div>",
                     unsafe_allow_html=True)
         st.markdown(f"**요약**  \n{res.get('summary','')}")
@@ -387,11 +567,9 @@ def page_decoder():
 
 # ================================================================== 소개
 def page_about():
-    st.subheader(t("nav_about", L))
+    hero("The MOA", "한국에 막 도착한 외국인 유학생이 은행 계좌를 갖기 전까지의 "
+         "금융 공백기를 버티게 해주는 AI 에이전트입니다.", slim=True)
     st.markdown("""
-**MOA (Money On Arrival)** 는 한국에 막 도착한 외국인 유학생이 은행 계좌를 갖기 전까지의
-**금융 공백기**를 버티게 해주는 AI 에이전트입니다.
-
 **문제**
 - 국내 외국인 유학생은 25만 3,512명입니다 (2025-04-01 기준, 교육부·한국교육개발원).
 - 입국 후 외국인등록증 발급과 계좌 개설까지 보통 몇 주가 걸립니다.
@@ -416,5 +594,6 @@ def page_about():
     st.caption("2026 금융 AI Challenge 출품작 · MVP · 실제 금융거래를 제공하지 않는 시연용 서비스입니다.")
 
 
-PAGES = {"settle": page_settle, "nav": page_navigator, "doc": page_decoder, "about": page_about}
+PAGES = {"home": page_home, "settle": page_settle, "nav": page_navigator,
+         "doc": page_decoder, "about": page_about}
 PAGES[page]()
